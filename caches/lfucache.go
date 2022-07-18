@@ -1,6 +1,9 @@
 package main
 
-import "container/list"
+import (
+	"container/list"
+	"fmt"
+)
 
 type CacheItem struct {
 	key             string
@@ -39,11 +42,16 @@ func (cache *Cache) Set(key string, value interface{}) {
 		item.value = value
 		cache.bykey[key] = item
 		cache.size++
+		if cache.atCapacity() {
+			cache.Evict(10)
+		}
+		cache.increment(item)
 	}
 }
 
 func (cache *Cache) Get(key string) interface{} {
 	if e, ok := cache.bykey[key]; ok {
+		cache.increment(e)
 		return e.value
 	}
 	return nil
@@ -56,7 +64,7 @@ func (cache *Cache) increment(item *CacheItem) {
 	var nextFrequency *list.Element
 
 	if currentFrequency == nil {
-		nextFrequency = 1
+		nextFrequencyAmount = 1
 		nextFrequency = cache.freqs.Front()
 
 	} else {
@@ -78,7 +86,7 @@ func (cache *Cache) increment(item *CacheItem) {
 	item.frequencyParent = nextFrequency
 	nextFrequency.Value.(*FrequencyItem).entries[item] = 1
 	if currentFrequency != nil {
-		cache.remove(currentFrequency, item)
+		cache.Remove(currentFrequency, item)
 	}
 }
 func (cache *Cache) Remove(listItem *list.Element, item *CacheItem) {
@@ -101,4 +109,15 @@ func (cache *Cache) Evict(count int) {
 			}
 		}
 	}
+}
+
+func (cache *Cache) atCapacity() bool {
+	return cache.size >= cache.capacity
+}
+
+func main() {
+	lfucache := New()
+	lfucache.Set("test1", "A B C")
+
+	fmt.Println(lfucache.Get("test1"))
 }
